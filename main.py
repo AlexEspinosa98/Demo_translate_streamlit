@@ -17,6 +17,18 @@ with st.sidebar:
     """)
     st.image("./assets/indigena.jpeg", caption="Pueblo Arhuaco", use_container_width=True)
 
+# --- CSS para altura mínima de expanders ---
+st.markdown("""
+    <style>
+    .streamlit-expanderHeader {
+        font-size: 1.1rem;
+    }
+    .streamlit-expanderContent {
+        min-height: 180px; /* Ajusta esta altura a tu gusto */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -49,24 +61,26 @@ def agregar_mensaje(rol, contenido, tipo="texto"):
 # --- FORMULARIO DE ENTRADA ---
 with st.container():
     if modo == "Arhuaco -> Español":
-        st.info("🎤 Grabación de audio (solo entrada de audio permitida en este modo)")
-        audio = audiorecorder("Grabar audio", "Detener grabación")
-        if len(audio) > 0:
-            # Convertir AudioSegment a bytes
-            audio_buffer = BytesIO()
-            audio.export(audio_buffer, format="wav")
-            audio_bytes = audio_buffer.getvalue()
-            st.audio(audio_bytes, format="audio/wav")
-
-            agregar_mensaje("usuario", "Audio grabado en Arhuaco", tipo="audio")
-            agregar_mensaje("asistente", "Traducción simulada al español")
+        col1, _ = st.columns([2,1])
+        with col1:
+            with st.expander("🎤 Grabar audio en Arhuaco", expanded=True):
+                audio = audiorecorder("Grabar audio", "Detener grabación")
+                if len(audio) > 0:
+                    audio_buffer = BytesIO()
+                    audio.export(audio_buffer, format="wav")
+                    audio_bytes = audio_buffer.getvalue()
+                    st.audio(audio_bytes, format="audio/wav")
+                    agregar_mensaje("usuario", "Audio grabado en Arhuaco", tipo="audio")
+                    agregar_mensaje("asistente", "Traducción simulada al español")
     else:
         col1, col2 = st.columns([2, 1])
         with col1:
-            texto = st.text_input("Escribe el texto en español:")
+            with st.expander("💬 Escribir texto en español (opcional)", expanded=True):
+                texto = st.text_input("Escribe aquí:")
         with col2:
-            audio = audiorecorder("Grabar audio", "Detener grabación")
-
+            with st.expander("🎤 Grabar audio en español (opcional)", expanded=True):
+                audio = audiorecorder("Grabar audio", "Detener grabación")
+        
         if texto:
             agregar_mensaje("usuario", texto)
             agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
@@ -75,7 +89,6 @@ with st.container():
             audio.export(audio_buffer, format="wav")
             audio_bytes = audio_buffer.getvalue()
             st.audio(audio_bytes, format="audio/wav")
-
             agregar_mensaje("usuario", "Audio grabado en español", tipo="audio")
             agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
 
