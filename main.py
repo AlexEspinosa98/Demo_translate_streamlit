@@ -17,6 +17,7 @@ dropbox_url = "https://www.dropbox.com/scl/fi/3ihcwk0v68ai6m72s5s7v/modelo_guard
 zip_filename = "modelo_guardado.zip"
 extract_folder = "modelo_extraido"
 
+# Cargar modelo al inicio de la app si no existe en sesión
 if "model" not in st.session_state:
     st.info("Inicializando modelos. Esto puede tardar un momento...")
     t0 = time.perf_counter()
@@ -71,6 +72,10 @@ if "modo_anterior" not in st.session_state:
     st.session_state.modo_anterior = st.session_state.modo
 if "audio_key" not in st.session_state:
     st.session_state.audio_key = str(random.randint(0, 1000000))
+if "texto_entrada" not in st.session_state:
+    st.session_state["texto_entrada"] = ""
+if "texto_traducido" not in st.session_state:
+    st.session_state["texto_traducido"] = ""
 
 # --- HEADER ---
 st.title("🗣️ Traductor Arhuaco ↔ Español")
@@ -82,6 +87,8 @@ if st.session_state.modo != st.session_state.modo_anterior:
     st.session_state.messages = []
     st.session_state.audio_key = str(random.randint(0, 1000000))
     st.session_state.modo_anterior = st.session_state.modo
+    st.session_state["texto_entrada"] = ""
+    st.session_state["texto_traducido"] = ""
 
 # --- FUNCIONES ---
 def agregar_mensaje(rol, contenido, tipo="texto"):
@@ -109,14 +116,8 @@ with st.container():
                     texto_transcrito = st.session_state["transcriber_arhuaco"].transcribe_bytes(audio_bytes)
                     traduccion = st.session_state["translator_espanol"].translate(texto_transcrito)
 
-                    # Mostrar en dos columnas
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1:
-                        st.markdown("**Arhuaco**")
-                        st.markdown(f"> {texto_transcrito}")
-                    with col_t2:
-                        st.markdown("**Español**")
-                        st.markdown(f"> {traduccion['translated']}")
+                    st.session_state["texto_entrada"] = texto_transcrito
+                    st.session_state["texto_traducido"] = traduccion["translated"]
 
                     agregar_mensaje("usuario", "Audio grabado en Arhuaco", tipo="audio")
                     agregar_mensaje("asistente", traduccion["translated"])
@@ -131,15 +132,10 @@ with st.container():
                 audio = audiorecorder("Grabar audio", "Detener grabación", key=st.session_state.audio_key)
 
         if texto:
-            agregar_mensaje("usuario", texto)
             traduccion = st.session_state["translator_arhuaco"].translate(texto)
-            col_t1, col_t2 = st.columns(2)
-            with col_t1:
-                st.markdown("**Español**")
-                st.markdown(f"> {texto}")
-            with col_t2:
-                st.markdown("**Arhuaco**")
-                st.markdown(f"> {traduccion['translated']}")
+            st.session_state["texto_entrada"] = texto
+            st.session_state["texto_traducido"] = traduccion["translated"]
+            agregar_mensaje("usuario", texto)
             agregar_mensaje("asistente", traduccion["translated"])
 
         elif len(audio) > 0:
@@ -155,15 +151,18 @@ with st.container():
                 st.error("No se pudo transcribir el audio. Por favor, intenta de nuevo.")
             else:
                 traduccion = st.session_state["translator_arhuaco"].translate(texto_transcrito)
+                st.session_state["texto_entrada"] = texto_transcrito
+                st.session_state["texto_traducido"] = traduccion["translated"]
                 agregar_mensaje("usuario", "Audio grabado en español", tipo="audio")
-                col_t1, col_t2 = st.columns(2)
-                with col_t1:
-                    st.markdown("**Español**")
-                    st.markdown(f"> {texto_transcrito}")
-                with col_t2:
-                    st.markdown("**Arhuaco**")
-                    st.markdown(f"> {traduccion['translated']}")
                 agregar_mensaje("asistente", traduccion["translated"])
+
+# --- MOSTRAR RESULTADOS EN DOS COLUMNAS ---
+if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
+    col_es, col_ar = st.columns(2)
+    with col_es:
+        st.text_area("Español" if modo == "Español -> Arhuaco" else "Arhuaco", value=st.session_state["texto_entrada"], height=150, disabled=True)
+    with col_ar:
+        st.text_area("Arhuaco" if modo == "Español -> Arhuaco" else "Español", value=st.session_state["texto_traducido"], height=150, disabled=True)
 
 # --- HISTORIAL ---
 st.markdown("---")
@@ -180,4 +179,6 @@ with st.container():
 if st.button("🗑️ Borrar historial"):
     st.session_state.messages = []
     st.session_state.audio_key = str(random.randint(0, 1000000))
+    st.session_state["texto_entrada"] = ""
+    st.session_state["texto_traducido"] = ""
     st.rerun()
