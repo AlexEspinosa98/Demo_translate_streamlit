@@ -1,53 +1,76 @@
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
-import av
+from datetime import datetime
 
-st.set_page_config(page_title="Maku Kaku - Traductor Arhuaco <-> Español", layout="centered")
+st.set_page_config(page_title="Traductor Arhuaco", layout="wide")
 
-st.title("🗣️ Maku Kaku")
-st.subheader("Traductor interactivo Arhuaco ↔ Español")
+# --- SIDEBAR ---
+with st.sidebar:
+    st.image("./assets/escudo.png", use_container_width=True)
+    st.title("Traductor Arhuaco - Español")
+    st.markdown("""
+    Esta herramienta busca preservar y facilitar la comunicación en la lengua Arhuaca, 
+    permitiendo traducciones entre el idioma Arhuaco y el español.
+    """)
+    st.image("./assets/indigena.jpeg", caption="Pueblo Arhuaco", use_container_width=True)
 
-translation_direction = st.radio(
-    "Selecciona dirección de traducción:",
-    ("Arhuaco ➡ Español", "Español ➡ Arhuaco")
-)
+# --- SESSION STATE ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-st.markdown("### 🎤 Graba tu audio")
+if "modo" not in st.session_state:
+    st.session_state.modo = "Arhuaco -> Español"
 
-class AudioProcessor(AudioProcessorBase):
-    def recv_queued(self, frames):
-        # Aquí cada frame es un fragmento de audio
-        # Puedes convertir a bytes y procesar
-        audio = b"".join([frame.to_ndarray().tobytes() for frame in frames])
-        # Guarda en variable de ejemplo
-        st.session_state['last_audio'] = audio
+# --- HEADER ---
+st.title("🗣️ Traductor Arhuaco ↔ Español")
+modo = st.selectbox("Selecciona el modo de traducción:", ["Arhuaco -> Español", "Español -> Arhuaco"])
+st.session_state.modo = modo
 
-        # Opcional: mostrar mensaje
-        st.info("Audio capturado y almacenado en variable.")
-        return av.AudioFrame.from_ndarray(frames[0].to_ndarray(), layout="mono")
+# --- FUNCIONES AUXILIARES ---
+def agregar_mensaje(rol, contenido, tipo="texto"):
+    st.session_state.messages.append({
+        "rol": rol,
+        "contenido": contenido,
+        "tipo": tipo,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
 
-# Inicializar grabadora
-webrtc_ctx = webrtc_streamer(
-    key="audio",
-    mode=WebRtcMode.SENDRECV,
-    audio_receiver_size=256,
-    video_receiver_size=0,
-    client_settings={
-        "media_stream_constraints": {
-            "audio": True,
-            "video": False,
-        }
-    },
-    audio_processor_factory=AudioProcessor,
-)
+# --- FORMULARIO DE ENTRADA ---
+with st.container():
+    if modo == "Arhuaco -> Español":
+        st.info("🎤 Grabación de audio (solo entrada de audio permitida en este modo)")
+        audio_data = st.file_uploader("Sube tu audio en Arhuaco", type=["wav", "mp3"])
+        if audio_data:
+            st.audio(audio_data)
+            agregar_mensaje("usuario", "Audio en Arhuaco", tipo="audio")
+            # Aquí vendría el llamado al traductor
+            agregar_mensaje("asistente", "Traducción simulada al español")
+    else:  # Español -> Arhuaco
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            texto = st.text_input("Escribe el texto en español:")
+        with col2:
+            audio_data = st.file_uploader("O sube un audio", type=["wav", "mp3"])
 
-st.markdown("### 📝 Opcional: Escribe texto")
-text_input = st.text_area("Texto a traducir")
+        if texto:
+            agregar_mensaje("usuario", texto)
+            # Aquí vendría la traducción
+            agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
+        elif audio_data:
+            st.audio(audio_data)
+            agregar_mensaje("usuario", "Audio en español", tipo="audio")
+            agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
 
-if st.button("Traducir"):
-    st.success("Aquí aparecerá la traducción...")
-    if "last_audio" in st.session_state:
-        st.write("Audio capturado (bytes):", len(st.session_state["last_audio"]), "bytes")
-
+# --- HISTORIAL DE CONVERSACIÓN ---
 st.markdown("---")
-st.caption("🌿 Este proyecto busca preservar y difundir las lenguas indígenas de la Sierra Nevada de Santa Marta.")
+st.markdown("### 🕓 Historial de conversación")
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["rol"]):
+        if msg["tipo"] == "texto":
+            st.markdown(f"{msg['contenido']}")
+        elif msg["tipo"] == "audio":
+            st.markdown(f"🎧 Audio subido a las {msg['timestamp']}")
+
+# --- OPCIONAL: Borrar historial ---
+if st.button("🗑️ Borrar historial"):
+    st.session_state.messages = []
