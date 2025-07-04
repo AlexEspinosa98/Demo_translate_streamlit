@@ -1,6 +1,10 @@
 import streamlit as st
 from datetime import datetime
+import warnings
+from audiorecorder import audiorecorder
+from io import BytesIO
 
+warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Traductor Arhuaco", layout="wide")
 
 # --- SIDEBAR ---
@@ -20,10 +24,18 @@ if "messages" not in st.session_state:
 if "modo" not in st.session_state:
     st.session_state.modo = "Arhuaco -> Español"
 
+if "modo_anterior" not in st.session_state:
+    st.session_state.modo_anterior = st.session_state.modo
+
 # --- HEADER ---
 st.title("🗣️ Traductor Arhuaco ↔ Español")
 modo = st.selectbox("Selecciona el modo de traducción:", ["Arhuaco -> Español", "Español -> Arhuaco"])
 st.session_state.modo = modo
+
+# Reiniciar historial si cambia de modo
+if st.session_state.modo != st.session_state.modo_anterior:
+    st.session_state.messages = []
+    st.session_state.modo_anterior = st.session_state.modo
 
 # --- FUNCIONES AUXILIARES ---
 def agregar_mensaje(rol, contenido, tipo="texto"):
@@ -38,39 +50,46 @@ def agregar_mensaje(rol, contenido, tipo="texto"):
 with st.container():
     if modo == "Arhuaco -> Español":
         st.info("🎤 Grabación de audio (solo entrada de audio permitida en este modo)")
-        audio_data = st.file_uploader("Sube tu audio en Arhuaco", type=["wav", "mp3"])
-        if audio_data:
-            st.audio(audio_data)
-            agregar_mensaje("usuario", "Audio en Arhuaco", tipo="audio")
-            # Aquí vendría el llamado al traductor
+        audio = audiorecorder("Grabar audio", "Detener grabación")
+        if len(audio) > 0:
+            # Convertir AudioSegment a bytes
+            audio_buffer = BytesIO()
+            audio.export(audio_buffer, format="wav")
+            audio_bytes = audio_buffer.getvalue()
+            st.audio(audio_bytes, format="audio/wav")
+
+            agregar_mensaje("usuario", "Audio grabado en Arhuaco", tipo="audio")
             agregar_mensaje("asistente", "Traducción simulada al español")
-    else:  # Español -> Arhuaco
+    else:
         col1, col2 = st.columns([2, 1])
         with col1:
             texto = st.text_input("Escribe el texto en español:")
         with col2:
-            audio_data = st.file_uploader("O sube un audio", type=["wav", "mp3"])
+            audio = audiorecorder("Grabar audio", "Detener grabación")
 
         if texto:
             agregar_mensaje("usuario", texto)
-            # Aquí vendría la traducción
             agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
-        elif audio_data:
-            st.audio(audio_data)
-            agregar_mensaje("usuario", "Audio en español", tipo="audio")
+        elif len(audio) > 0:
+            audio_buffer = BytesIO()
+            audio.export(audio_buffer, format="wav")
+            audio_bytes = audio_buffer.getvalue()
+            st.audio(audio_bytes, format="audio/wav")
+
+            agregar_mensaje("usuario", "Audio grabado en español", tipo="audio")
             agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
 
-# --- HISTORIAL DE CONVERSACIÓN ---
+# --- HISTORIAL ---
 st.markdown("---")
 st.markdown("### 🕓 Historial de conversación")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["rol"]):
         if msg["tipo"] == "texto":
-            st.markdown(f"{msg['contenido']}")
+            st.markdown(msg["contenido"])
         elif msg["tipo"] == "audio":
-            st.markdown(f"🎧 Audio subido a las {msg['timestamp']}")
+            st.markdown(f"🎧 Audio grabado a las {msg['timestamp']}")
 
-# --- OPCIONAL: Borrar historial ---
+# --- BORRAR HISTORIAL ---
 if st.button("🗑️ Borrar historial"):
     st.session_state.messages = []
