@@ -3,6 +3,7 @@ from datetime import datetime
 import warnings
 from audiorecorder import audiorecorder
 from io import BytesIO
+import random
 
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Traductor Arhuaco", layout="wide")
@@ -17,14 +18,14 @@ with st.sidebar:
     """)
     st.image("./assets/indigena.jpeg", caption="Pueblo Arhuaco", use_container_width=True)
 
-# --- CSS para altura mínima de expanders ---
+# --- CSS ---
 st.markdown("""
     <style>
     .streamlit-expanderHeader {
         font-size: 1.1rem;
     }
     .streamlit-expanderContent {
-        min-height: 180px; /* Ajusta esta altura a tu gusto */
+        min-height: 180px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -32,12 +33,12 @@ st.markdown("""
 # --- SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
 if "modo" not in st.session_state:
     st.session_state.modo = "Arhuaco -> Español"
-
 if "modo_anterior" not in st.session_state:
     st.session_state.modo_anterior = st.session_state.modo
+if "audio_key" not in st.session_state:
+    st.session_state.audio_key = str(random.randint(0, 1000000))
 
 # --- HEADER ---
 st.title("🗣️ Traductor Arhuaco ↔ Español")
@@ -47,9 +48,10 @@ st.session_state.modo = modo
 # Reiniciar historial si cambia de modo
 if st.session_state.modo != st.session_state.modo_anterior:
     st.session_state.messages = []
+    st.session_state.audio_key = str(random.randint(0, 1000000))
     st.session_state.modo_anterior = st.session_state.modo
 
-# --- FUNCIONES AUXILIARES ---
+# --- FUNCIONES ---
 def agregar_mensaje(rol, contenido, tipo="texto"):
     st.session_state.messages.append({
         "rol": rol,
@@ -58,13 +60,13 @@ def agregar_mensaje(rol, contenido, tipo="texto"):
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
 
-# --- FORMULARIO DE ENTRADA ---
+# --- FORMULARIO ---
 with st.container():
     if modo == "Arhuaco -> Español":
         col1, _ = st.columns([2,1])
         with col1:
             with st.expander("🎤 Grabar audio en Arhuaco", expanded=True):
-                audio = audiorecorder("Grabar audio", "Detener grabación")
+                audio = audiorecorder("Grabar audio", "Detener grabación", key=st.session_state.audio_key)
                 if len(audio) > 0:
                     audio_buffer = BytesIO()
                     audio.export(audio_buffer, format="wav")
@@ -79,8 +81,8 @@ with st.container():
                 texto = st.text_input("Escribe aquí:")
         with col2:
             with st.expander("🎤 Grabar audio en español (opcional)", expanded=True):
-                audio = audiorecorder("Grabar audio", "Detener grabación")
-        
+                audio = audiorecorder("Grabar audio", "Detener grabación", key=st.session_state.audio_key)
+
         if texto:
             agregar_mensaje("usuario", texto)
             agregar_mensaje("asistente", "Traducción simulada al Arhuaco")
@@ -96,13 +98,16 @@ with st.container():
 st.markdown("---")
 st.markdown("### 🕓 Historial de conversación")
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["rol"]):
-        if msg["tipo"] == "texto":
-            st.markdown(msg["contenido"])
-        elif msg["tipo"] == "audio":
-            st.markdown(f"🎧 Audio grabado a las {msg['timestamp']}")
+with st.container():
+    for msg in reversed(st.session_state.messages):
+        with st.chat_message(msg["rol"]):
+            if msg["tipo"] == "texto":
+                st.markdown(msg["contenido"])
+            elif msg["tipo"] == "audio":
+                st.markdown(f"🎧 Audio grabado a las {msg['timestamp']}")
 
-# --- BORRAR HISTORIAL ---
+# --- BOTÓN BORRAR ---
 if st.button("🗑️ Borrar historial"):
     st.session_state.messages = []
+    st.session_state.audio_key = str(random.randint(0, 1000000))  # cambia clave del componente
+    st.rerun()
