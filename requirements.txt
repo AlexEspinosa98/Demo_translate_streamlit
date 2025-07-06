@@ -1,5 +1,6 @@
-streamlit
-transformers
-gtts
-streamlit-audiorecorder
-torch
+streamlit==1.46.1
+transformers==4.53.1
+gTTS==2.5.4
+streamlit-audiorecorder==0.0.6
+torch==2.7.1
+torchaudio==2.7.1
