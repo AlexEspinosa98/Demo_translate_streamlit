@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import warnings
-from audiorecorder import audiorecorder
+from streamlit_audiorecorder import audiorecorder
 from io import BytesIO
 import random
 import time

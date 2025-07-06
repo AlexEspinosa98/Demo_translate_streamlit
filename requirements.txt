@@ -1,6 +1,5 @@
 streamlit
 transformers
 gtts
-audiorecorder
+streamlit-audiorecorder
 torch
-torchaudio
