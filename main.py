@@ -18,11 +18,9 @@ if "model" not in st.session_state:
     with st.spinner("🔄 Inicializando modelos. Esto puede tardar un momento..."):
         t0 = time.perf_counter()
 
-        # Traductores
         st.session_state["translator_arhuaco"] = Translator(spanish2arhuaco)
         st.session_state["translator_espanol"] = Translator(arhuaco2spanish)
 
-        # Español ASR (Whisper Tiny)
         asr_es = pipeline("automatic-speech-recognition", model="openai/whisper-tiny")
         st.session_state["asr_es"] = SpanishTranscriber(asr_es)
 
@@ -31,23 +29,58 @@ if "model" not in st.session_state:
     st.toast(f"✅ Modelos listos en {t1 - t0:.2f} segundos TOT.")
 
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="Traductor Arhuaco", layout="wide")
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.image("./assets/escudo.png", use_container_width=True)
-    st.title("Traductor Arhuaco - Español")
-    st.markdown("""
-    Esta herramienta busca preservar y facilitar la comunicación en la lengua Arhuaca, 
-    permitiendo traducciones entre el idioma Arhuaco y el español.
-    """)
-    st.image("./assets/indigena.jpeg", caption="Pueblo Arhuaco", use_container_width=True)
+st.set_page_config(
+    page_title="Traductor Arhuaco SAYTA",
+    layout="wide",
+)
 
 # --- CSS PERSONALIZADO ---
-st.markdown("""
+st.markdown(f"""
     <style>
-    .streamlit-expanderHeader { font-size: 1.1rem; }
-    .streamlit-expanderContent { min-height: 180px; }
+    html, body, [class*="css"]  {{
+        background-color: #FFFFFF;
+        color: #000000;
+    }}
+    .main-title {{
+        font-size: 3rem;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 0.2em;
+        color: #004A87;
+    }}
+    .big-title {{
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.2em;
+        color: #004A87;
+    }}
+    .subtitle {{
+        font-size: 1.2rem;
+        margin-bottom: 1em;
+        color: #888888;
+    }}
+    .sayta-name {{
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #00A50B;
+        margin-top: -0.3em;
+        margin-bottom: 1em;
+    }}
+    .stButton button {{
+        background-color: #004A87;
+        color: white;
+        border: None;
+        padding: 0.5em 1em;
+        border-radius: 5px;
+    }}
+    .stButton button:hover {{
+        background-color: #005CAB;
+        color: white;
+    }}
+    .streamlit-expanderHeader {{
+        font-size: 1.1rem;
+        color: #004A87;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -67,12 +100,21 @@ if "texto_traducido" not in st.session_state:
 if "num_traducciones" not in st.session_state:
     st.session_state["num_traducciones"] = 0
 
-# --- HEADER ---
-st.title("🗣️ Traductor Arhuaco ↔ Español")
+# --- HEADER ORGANIZADO ---
+st.markdown('<div class="main-title">Proyecto SAYTA</div>', unsafe_allow_html=True)
+
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    st.image("./assets/escudo.png", width=100)
+with col_title:
+    st.markdown('<div class="big-title">Traductor Arhuaco ↔ Español</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Esta herramienta busca preservar y facilitar la comunicación en la lengua Arhuaca, permitiendo traducciones entre el idioma Arhuaco y el español.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sayta-name">🌿 Universidad del Magdalena</div>', unsafe_allow_html=True)
+
+# --- MODO DE TRADUCCIÓN ---
 modo = st.selectbox("Selecciona el modo de traducción:", ["Arhuaco -> Español", "Español -> Arhuaco"])
 st.session_state.modo = modo
 
-# Reiniciar historial si cambia de modo
 if st.session_state.modo != st.session_state.modo_anterior:
     st.session_state.messages = []
     st.session_state.audio_key = str(random.randint(0, 1000000))
@@ -90,7 +132,7 @@ def agregar_mensaje(rol, contenido, tipo="texto"):
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
 
-# --- FORMULARIO DE ENTRADA ---
+# --- FORMULARIO ---
 with st.container():
     if modo == "Arhuaco -> Español":
         col1, _ = st.columns([2,1])
@@ -150,7 +192,7 @@ with st.container():
                     agregar_mensaje("asistente", traduccion["translated"])
                     st.session_state["num_traducciones"] += 1
 
-# --- MOSTRAR RESULTADOS Y AUDIO ---
+# --- RESULTADOS Y AUDIO ---
 if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
     col_es, col_ar = st.columns(2)
     with col_es:
@@ -172,7 +214,7 @@ if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
         with st.spinner("🗣️ Generando audio traducido..."):
             tts = gTTS(
                 text=st.session_state["texto_traducido"],
-                lang="es" if modo == "Arhuaco -> Español" else "es"
+                lang="es"
             )
             audio_fp = BytesIO()
             tts.write_to_fp(audio_fp)
@@ -182,18 +224,17 @@ if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
 
     st.info(f"📊 Número de traducciones realizadas: {st.session_state['num_traducciones']}")
 
-# --- HISTORIAL DE MENSAJES ---
+# --- HISTORIAL ---
 st.markdown("---")
 st.markdown("### 🕓 Historial de conversación")
-with st.container():
-    for msg in reversed(st.session_state.messages):
-        with st.chat_message(msg["rol"]):
-            if msg["tipo"] == "texto":
-                st.markdown(msg["contenido"])
-            elif msg["tipo"] == "audio":
-                st.markdown(f"🎧 Audio grabado a las {msg['timestamp']}")
+for msg in reversed(st.session_state.messages):
+    with st.chat_message(msg["rol"]):
+        if msg["tipo"] == "texto":
+            st.markdown(msg["contenido"])
+        elif msg["tipo"] == "audio":
+            st.markdown(f"🎧 Audio grabado a las {msg['timestamp']}")
 
-# --- BORRAR HISTORIAL ---
+# --- BOTÓN BORRAR ---
 if st.button("🗑️ Borrar historial"):
     st.session_state.messages = []
     st.session_state.audio_key = str(random.randint(0, 1000000))
