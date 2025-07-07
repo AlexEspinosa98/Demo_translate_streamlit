@@ -34,6 +34,12 @@ st.set_page_config(
     layout="wide",
 )
 
+dif_audios = {
+    "duzano": "./recorders/duzano.wav",
+    "azi mezare": "./recorders/azi_mezare.wav",
+}
+
+
 # --- CSS PERSONALIZADO ---
 st.markdown(f"""
     <style>
@@ -211,7 +217,13 @@ if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
         )
 
     if st.session_state["texto_traducido"]:
-        with st.spinner("🗣️ Generando audio traducido..."):
+            
+        if dif_audios.get(st.session_state["texto_traducido"].lower(), None):
+
+            with open(dif_audios[st.session_state["texto_traducido"].lower()], "rb") as audio_file:
+                audio_fp = audio_file.read()
+        else:
+
             tts = gTTS(
                 text=st.session_state["texto_traducido"],
                 lang="es"
@@ -220,7 +232,7 @@ if st.session_state["texto_entrada"] or st.session_state["texto_traducido"]:
             tts.write_to_fp(audio_fp)
             audio_fp.seek(0)
             st.markdown("### 🔊 Audio traducido:")
-            st.audio(audio_fp, format="audio/mp3")
+        st.audio(audio_fp, format="audio/mp3")
 
     st.info(f"📊 Número de traducciones realizadas: {st.session_state['num_traducciones']}")
 
